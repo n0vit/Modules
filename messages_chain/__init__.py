@@ -1,6 +1,6 @@
-from .messages_chain import MessagesChain, MessageChainStates
+from .messages_chain import MessagesChain
 from .chain_model import ChainModel
-from .chain_repo import Storages
+from .chain_repo import MemoryConnection, MongoConnection,RedisConnection
 
-__all__ = ("MessagesChain","Storages","MessageChainStates","ChainModel")
+__all__ = ("MessagesChain","Storages","MessageChainStates","ChainModel", "MongoConnection","MemoryConnection","RedisConnection")
 

@@ -2,15 +2,13 @@ from typing import List
 from aiogram import Dispatcher
 
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.dispatcher.filters.state import State
 from aiogram.types import ContentType, InlineKeyboardMarkup, MediaGroup, Message
-from aiogram_media_group import media_group_handler
+from .aiogram_media_group import media_group_handler
+
 from .chain_model import ChainModel
-from .chain_repo import ChainRepo, Storages
+from .chain_repo import ChainRepo, MemoryConnection,MongoConnection,RedisConnection
 
-
-class MessageChainStates(StatesGroup):
-    write = State()
 
 
 
@@ -20,7 +18,8 @@ class MessagesChain:
 
 
     Args:
-        storage: You put Dispatcher from aiogram & Chain will use storage defined in aiogram  OR  put concret storage
+        storage: Dispatcher from aiogram (use storage defined in aiogram)  OR  put concret storage
+        prefix: Name Collection
     Example:
         Base Usage
         '''Python
@@ -60,17 +59,22 @@ class MessagesChain:
         '''
 
     """
-    def __init__(self,dispatcher: Dispatcher | Storages, prefix: str = "ChainRepo") -> None:
+    def __init__(self,storage: Dispatcher | MemoryConnection| RedisConnection | MongoConnection, prefix: str = "messages_chain") -> None:
 
-        self.repo= ChainRepo(dispatcher=dispatcher, storage_prefix=prefix)
+        self.repo =ChainRepo(storage=storage, storage_prefix=prefix).init()
+
+
+
 
     @property
     def repository(self) -> ChainRepo:
         return self.repo
 
-    async def chain_start_write(self) -> None:
-        await MessageChainStates.write.set()
+
+    async def chain_start_write(self, state: State) -> None:
+        await state.set()
         await self.repo.delete_all()
+
 
     @media_group_handler(only_album=False)
     async def chain_write(self,message: List[Message]) -> None:
