@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import List
 from aiogram import Dispatcher
 
@@ -14,8 +15,9 @@ class MessageChainStates(StatesGroup):
 
 
 
+
 class MessagesChain:
-    def __init__(self,dispatcher: Dispatcher, prefix: str = "ChainRepo") -> None:
+    def __init__(self,dispatcher: Dispatcher | None, , prefix: str = "ChainRepo") -> None:
         self.repo= ChainRepo(dispatcher=dispatcher, storage_prefix=prefix)
 
     @property

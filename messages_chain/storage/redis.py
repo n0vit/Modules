@@ -1,17 +1,12 @@
 from typing import List
 from typing import TYPE_CHECKING
 import datetime
-from aiogram import types
 from..chain_model import ChainModel
 from .base import BaseStorage
 
 if TYPE_CHECKING:
     import aioredis
 
-try:
-    import ujson as json
-except ImportError:
-    import json
 
 
 class RedisStorage(BaseStorage):

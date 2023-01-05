@@ -1,3 +1,4 @@
+from enum import Enum
 from aiogram import Dispatcher
 from . import AIOGRAM_VERSION
 from .storage.memory import MemoryStorage
@@ -55,13 +56,30 @@ elif AIOGRAM_VERSION == 2:
     else:
         REDIS_INSTALLED = True
 
+class Storages(Enum):
+    MONGO =  MongoStorage
+    REDIS = RedisStorage
+    MEMORY = MemoryStorage
 
 
 
 class   ChainRepo(BaseStorage):
-    async def __init__(self, dispatcher: Dispatcher, storage_prefix:str| None, ttl: int = 2) -> None:
+    """ General Repository
+
+
+    Args:
+        storage: You put Dispatcher from aiogram & Chain will use storage defined in aiogram  OR  put concret storage
+    Example:
+
+    """
+    async def __init__(self, storage: Dispatcher | Storages, storage_prefix:str| None, ttl: int = 2) -> None:
+
+        if type(storage) is Dispatcher:
+            storage = storage.get_current().storage
+
+
         await self._wrap_storage(
-                        dispatcher.get_current().storage, storage_prefix, ttl
+                        storage, storage_prefix, ttl
                     )
 
 

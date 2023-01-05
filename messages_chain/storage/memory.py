@@ -2,7 +2,7 @@ from typing import List, Dict
 
 from aiogram import types
 
-from Modules.messages_chain.chain_model import ChainModel
+from ..chain_model import ChainModel
 
 from .base import BaseStorage
 

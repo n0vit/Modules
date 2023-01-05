@@ -1,13 +1,11 @@
 import asyncio
-import datetime
 import logging
 from typing import List
 from typing import Literal
 from typing import TYPE_CHECKING
 
-from aiogram import types
 
-from Modules.messages_chain.chain_model import ChainModel
+from ..chain_model import ChainModel
 
 from .base import BaseStorage
 
@@ -15,7 +13,7 @@ if TYPE_CHECKING:
     from motor import motor_asyncio
 
 try:
-    from pymongo.errors import OperationFailure, DuplicateKeyError
+    from pymongo.errors import OperationFailure
 except ImportError:
     pass
 
