@@ -1,6 +1,7 @@
 from aiogram import Dispatcher
 from . import AIOGRAM_VERSION
 from .storage.memory import MemoryStorage
+from .storage.base import BaseStorage
 
 if AIOGRAM_VERSION == 3:
     # Currently for aiogram3 MemoryStorage is used, because this version is still in development
@@ -57,7 +58,7 @@ elif AIOGRAM_VERSION == 2:
 
 
 
-class   ChainRepo:
+class   ChainRepo(BaseStorage):
     async def __init__(self, dispatcher: Dispatcher, storage_prefix:str| None, ttl: int = 2) -> None:
         await self._wrap_storage(
                         dispatcher.get_current().storage, storage_prefix, ttl
