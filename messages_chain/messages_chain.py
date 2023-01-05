@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import List
 from aiogram import Dispatcher
 
@@ -7,7 +6,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ContentType, InlineKeyboardMarkup, MediaGroup, Message
 from aiogram_media_group import media_group_handler
 from .chain_model import ChainModel
-from .chain_repo import ChainRepo
+from .chain_repo import ChainRepo, Storages
 
 
 class MessageChainStates(StatesGroup):
@@ -17,11 +16,56 @@ class MessageChainStates(StatesGroup):
 
 
 class MessagesChain:
-    def __init__(self,dispatcher: Dispatcher | None, , prefix: str = "ChainRepo") -> None:
+    """ General Repository
+
+
+    Args:
+        storage: You put Dispatcher from aiogram & Chain will use storage defined in aiogram  OR  put concret storage
+    Example:
+        Base Usage
+        '''Python
+
+        from aiogram import Dispatcher
+        from messages_chain import MessageChain
+
+        bot = Bot(token=bot_token)
+        dp = Dispatcher(bot)
+        chain = MessageChain(storage=dp)
+        chain
+        '''
+        Recommend Usage
+        '''Python
+        Call Chain in any place
+
+        from messages_chain import MessageChain, Storages
+        chain = MessageChain(storage=Storages.MONGO)
+
+        AND
+        Register chain in message handler as function
+        from aiogram import Dispatcher
+        from aiogram.types import ContentType
+        from messages_chain import MessageChain
+
+        bot = Bot(token=bot_token)
+        dp = Dispatcher(bot)
+        dp.register_message_handler(
+        chain.chain_write,
+        state=cast_state.record_chain,
+        content_types=ContentType.all(),
+        )
+        OR as call with decorator
+        @dp.message_handler(state=cast_state.record_chain,content_types=ContentType.all())
+        async def my_chain(message: Message):
+            await messages_chain.chain_write(message)
+        '''
+
+    """
+    def __init__(self,dispatcher: Dispatcher | Storages, prefix: str = "ChainRepo") -> None:
+
         self.repo= ChainRepo(dispatcher=dispatcher, storage_prefix=prefix)
 
     @property
-    def repository(self):
+    def repository(self) -> ChainRepo:
         return self.repo
 
     async def chain_start_write(self) -> None:
@@ -30,6 +74,11 @@ class MessagesChain:
 
     @media_group_handler(only_album=False)
     async def chain_write(self,message: List[Message]) -> None:
+        """ Use ONLY
+
+        Args:
+            message (List[Message]): _description_
+        """
         module = self.repo
         text = None
         if len(message) > 1:

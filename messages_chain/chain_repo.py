@@ -64,14 +64,6 @@ class Storages(Enum):
 
 
 class   ChainRepo(BaseStorage):
-    """ General Repository
-
-
-    Args:
-        storage: You put Dispatcher from aiogram & Chain will use storage defined in aiogram  OR  put concret storage
-    Example:
-
-    """
     async def __init__(self, storage: Dispatcher | Storages, storage_prefix:str| None, ttl: int = 2) -> None:
 
         if type(storage) is Dispatcher:
