@@ -1,21 +1,34 @@
 from typing import List
+from aiogram import Dispatcher
 
 from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ContentType, InlineKeyboardMarkup, MediaGroup, Message
 from aiogram_media_group import media_group_handler
 from .chain_model import ChainModel
+from .chain_repo import ChainRepo
+
+
+class MessageChainStates(StatesGroup):
+    write = State()
+
 
 
 class MessagesChain:
-    @staticmethod
-    async def chain_start_write() -> None:
-        await ShopSetup.edit_description.set()
-        await _chain_repo.delete_all()
+    def __init__(self,dispatcher: Dispatcher, prefix: str = "ChainRepo") -> None:
+        self.repo= ChainRepo(dispatcher=dispatcher, storage_prefix=prefix)
 
-    @staticmethod
+    @property
+    def repository(self):
+        return self.repo
+
+    async def chain_start_write(self) -> None:
+        await MessageChainStates.write.set()
+        await self.repo.delete_all()
+
     @media_group_handler(only_album=False)
-    async def chain_write(message: List[Message]) -> None:
-        module = _chain_repo
+    async def chain_write(self,message: List[Message]) -> None:
+        module = self.repo
         text = None
         if len(message) > 1:
             types = list(_.content_type for _ in message)
@@ -38,7 +51,7 @@ class MessagesChain:
             text = None
             if text_list:
                 text = text_list[0]
-            await module.add_descr(
+            await module.add_message(
                 ChainModel(
                     is_media_group=True,
                     content_type=types,
@@ -68,7 +81,7 @@ class MessagesChain:
             case ContentType.VOICE:
                 data_id = msg.voice.file_id
 
-        await module.add_descr(
+        await module.add_message(
             ChainModel(
                 content_type=msg.content_type,
                 data_id=data_id,
@@ -76,10 +89,9 @@ class MessagesChain:
             )
         )
 
-    @staticmethod
-    async def chain_finish_write(state: FSMContext) -> List[ChainModel]:
+    async def chain_finish_write(self,state: FSMContext) -> List[ChainModel]:
         await state.finish()
-        list_descriptions = await _chain_repo.get_all_descr()
+        list_descriptions = await self.repo.get_all_chain()
         return list_descriptions
 
     @staticmethod

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 
 class ChainModel(BaseModel):
+    message_id: int|str
     data_id: List[str] | str | None
     is_media_group: bool = False
     content_type: str | List[str]
