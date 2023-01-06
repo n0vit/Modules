@@ -6,7 +6,6 @@ from aioredis import Redis
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import errors
 from .storage.memory import MemoryStorage
-from .storage.base import BaseStorage
 
 
 from aiogram import __version__ as AIOGRAM_VERSION

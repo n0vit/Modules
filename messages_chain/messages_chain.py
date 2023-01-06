@@ -1,6 +1,5 @@
 from typing import List
 from aiogram import Dispatcher
-
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State
 from aiogram.types import ContentType, InlineKeyboardMarkup, MediaGroup, Message
@@ -144,7 +143,7 @@ class MessagesChain:
             )
         )
 
-    async def chain_finish_write(self,state: FSMContext) -> List[ChainModel]:
+    async def chain_finish_write(self,state: FSMContext) -> List[ChainModel]| List:
         await state.finish()
         list_descriptions = await self.repo.get_all_chain()
         return list_descriptions
@@ -158,6 +157,10 @@ class MessagesChain:
         if isinstance(description, list):
             if not markup:
                 markup = None
+
+            if not description:
+                return []
+
             if len(description) == 1:
                 last_msg = description[0]
 

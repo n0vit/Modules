@@ -1,6 +1,5 @@
-from typing import List, Dict
+from typing import List
 
-from aiogram import types
 
 from ..chain_model import ChainModel
 
