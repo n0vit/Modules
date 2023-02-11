@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - "r/*"
-      - r/*
+      - "*/*"
 
 jobs:
   pre-release:
