@@ -28,5 +28,5 @@ jobs:
           prerelease: false
           title: "Realese Build"
           files: |
-            LICENSE.txt
+            LICENSE
             *.jar
