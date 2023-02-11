@@ -4,11 +4,11 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="message_chain",
+    name="categories",
     version="0.1",
     author="tg: n0v_it",
     author_email="kolzazanovikov@gmail.com",
-    description="Chain Module for other modules",
+    description="Category Module",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/n0vit/Modules.git",
