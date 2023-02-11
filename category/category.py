@@ -87,6 +87,7 @@ class Category:
         isReorder = callback_data.get("type", "") == "reorder"
         isPage = callback_data.get("type", "") == "page"
         category = None
+
         if isPage:
             page_number = int(callback_data.get("id", 1))
         else:
