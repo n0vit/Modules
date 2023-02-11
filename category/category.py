@@ -102,6 +102,7 @@ class Category:
 
                 await self.chain.chain_read(query.message, category.description)
                 subcats = await self.repo.get_subcategories(category.id)
+                #gor test
                 await query.message.answer(
                     category.name,
                     reply_markup=self.buttons.categories(
