@@ -64,7 +64,6 @@ class Category:
     async def try_edit(message: Message, text, markup=None):
         try:
             await message.delete()
-
             await message.bot.edit_message_text(
                 text=text,
                 chat_id=message.from_user.id,
