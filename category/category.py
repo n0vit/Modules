@@ -127,7 +127,6 @@ class Category:
         self, query: CallbackQuery, callback_data: dict, state: FSMContext
     ) -> None:
         await CategoryStates.name.set()
-
         await state.update_data(id=callback_data.get("id", "root"))
         await state.update_data(query=query.to_python())
         await query.message.answer(text=self.texts.get_name)
