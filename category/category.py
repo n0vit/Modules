@@ -27,7 +27,6 @@ class Category:
     def __init__(
         self,
         storage: MongoConnection,
-        dispatcher: Dispatcher,
         buttons: CustomButtonsModel | None = None,
         prefix: str = "base",
         admin_ids: List[str] = [],
@@ -41,16 +40,15 @@ class Category:
                 dict((_, _ + ":" + texts.dict()[_]) for _ in texts.dict().keys())
             )
         self.texts = texts
-        self.dispatcher = dispatcher
         self.admin_ids = admin_ids
         self.custom_buttons = buttons
         self.buttons = CategoryButtons()
 
 
 
-    def reg_handlers(self):
+    def reg_handlers(self, dispatcher: Dispatcher):
         cb = CategoryCallBackData()
-        dp = self.dispatcher
+        dp = dispatcher
         dp.register_callback_query_handler(self.add_category, cb.control.filter(type=['sub', 'main']))
         dp.register_callback_query_handler(self.delete_category, cb.control.filter(type='delete'))
         dp.register_callback_query_handler(self.delete_confirmation, cb.control.filter(type=['save_subs','delete_subs','cancel_deleting']))
