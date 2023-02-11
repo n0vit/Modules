@@ -5,10 +5,7 @@ name: "Release"
 on:
   push:
     branches:
-      - '*/*'
-      - 'r/**'
-      - 'r/categories'
-      - 'r/messages_chain'
+      - '*'
 
 jobs:
   release:
