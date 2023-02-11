@@ -4,9 +4,8 @@ name: "Release"
 
 on:
   push:
-    branches:
-      - "r/*"
-      - "*/*"
+    branches-ignore:
+      - master
 
 jobs:
   release:
