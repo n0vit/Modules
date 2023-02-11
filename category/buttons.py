@@ -1,4 +1,4 @@
-from ast import List
+from typing import List
 from aiogram.utils.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton,InlineKeyboardMarkup
 
