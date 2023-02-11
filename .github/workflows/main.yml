@@ -1,6 +1,5 @@
-- name: Automatic Releases
-  uses: marvinpinto/action-automatic-releases@v1.2.1
----
+
+  
 name: "Release"
 
 on:
@@ -13,6 +12,8 @@ jobs:
 
     steps:
       # ...
+ 
+     
       - name: "Build & test"
         run: |
           echo "done!"
