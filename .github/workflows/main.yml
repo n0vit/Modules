@@ -5,7 +5,8 @@ name: "Release"
 on:
   push:
     branches:
-    - r/*
+      - "r/*"
+      - r/*
 
 jobs:
   pre-release:
