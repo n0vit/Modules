@@ -129,10 +129,12 @@ class Category:
         await CategoryStates.name.set()
         await state.update_data(id=callback_data.get("id", "root"))
         await state.update_data(query=query.to_python())
+
         await query.message.answer(text=self.texts.get_name)
 
     async def save_name(self, message: Message, state: FSMContext) -> None:
         state.update_data(name=message.html_text)
+
         await self.chain.chain_start_write(CategoryStates.description)
         await message.answer(text=self.texts.get_description)
 
