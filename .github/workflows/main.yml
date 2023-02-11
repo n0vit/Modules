@@ -6,6 +6,8 @@ on:
   push:
     branches:
       - '*/*'
+      - 'r/categories'
+      - 'r/messages_chain'
 
 jobs:
   release:
@@ -23,9 +25,9 @@ jobs:
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "${{github.ref}}"
+          automatic_release_tag: "${{github.ref_name}}"
           prerelease: false
-          title: "${{github.ref}}"
+          title: "${{github.ref_name}}"
           files: |
             LICENSE
             *.jar
