@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - '*/*'
+      - 'r/**'
       - 'r/categories'
       - 'r/messages_chain'
 
