@@ -41,6 +41,7 @@ class Category:
             )
         self.texts = texts
         self.admin_ids = admin_ids
+
         self.custom_buttons = buttons
         self.buttons = CategoryButtons()
 
