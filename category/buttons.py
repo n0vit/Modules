@@ -18,16 +18,13 @@ class CategoryButtons:
         self.cb = callback
 
 
-    @staticmethod
-    def add_main_category(name,text: str = "Add Category") -> InlineKeyboardButton:
+    def add_main_category(self,name,text: str = "Add Category") -> InlineKeyboardButton:
         return InlineKeyboardButton(
-            text, callback_data=CategoryCallBackData.control.new(type="main", id="root")
+            text, callback_data=self.cb.control.new(type="main", id="root")
         )
 
-    @staticmethod
-    def categories(prefix: str):
-        callback = CategoryCallBackData(prefix)
-        return InlineKeyboardMarkup().add([InlineKeyboardButton('c', callback_data=callback.control.new(type='root', id='root'))])
+    def categories(self):
+        return InlineKeyboardMarkup().add([InlineKeyboardButton('c', callback_data=self.cb.control.new(type='root', id='root'))])
 
 
     def _categories(self,
