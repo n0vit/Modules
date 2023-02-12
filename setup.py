@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="categories",
-    version="0.1",
+    version="0.2",
     author="tg: n0v_it",
     author_email="kolzazanovikov@gmail.com",
     description="Category Module",
