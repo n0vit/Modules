@@ -27,23 +27,27 @@ Documents = Literal["MessageChain"]
 
 
 class MongoStorage(BaseStorage):
-    def __init__(self, db: "motor_asyncio.AsyncIOMotorDatabase", prefix: str, ttl: int):
+    def __init__(self, client: "motor_asyncio.AsyncIOMotorClient", db_name,prefix: str, ttl: int):
         self._ttl = ttl
-        self._collection: motor_asyncio.AsyncIOMotorCollection = db[prefix]
+        self._collection: motor_asyncio.AsyncIOMotorCollection = client[db_name][prefix]
 
         loop = asyncio.get_event_loop()
 
         #  This happens when MongoDB driver is used as storage_driver argument
         if loop.is_closed():
             loop = asyncio.new_event_loop()
+            client.get_io_loop = asyncio.get_running_loop
+            db = client[db_name]
             loop.run_until_complete(self._create_collection(db, prefix, ttl))
             loop.close()
         else:
-            threading.Thread(target=self._tread_init,name=f'Message Chain {prefix} init',args=(self, db, prefix, ttl)).run()
+            threading.Thread(target=self._tread_init,name=f'Message Chain {prefix} init',args=(client,db_name, prefix, ttl)).run()
 
 
-    def _tread_init(self, db, prefix, ttl):
+    def _tread_init(self, client, db_name,prefix, ttl):
         loop = asyncio.new_event_loop()
+        client.get_io_loop = asyncio.get_running_loop
+        db = client[db_name]
         loop.run_until_complete(self._create_collection(db, prefix, ttl))
         loop.close()
         logging.debug('Message Chain inited')

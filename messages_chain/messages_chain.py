@@ -1,14 +1,13 @@
-from typing import List
-from aiogram import Dispatcher
+from typing import List, TYPE_CHECKING
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State
 from aiogram.types import ContentType, InlineKeyboardMarkup, MediaGroup, Message
 from .aiogram_media_group import media_group_handler
 
 from .chain_model import ChainModel
 from .chain_repo import ChainRepo, MemoryConnection,MongoConnection,RedisConnection
 
-
+if TYPE_CHECKING:
+    from aiogram.dispatcher.filters.state import State
 
 
 
@@ -58,22 +57,17 @@ class MessagesChain:
         '''
 
     """
-    def __init__(self,storage: Dispatcher | MemoryConnection| RedisConnection | MongoConnection, prefix: str = "messages_chain") -> None:
+    def __init__(self,storage: MemoryConnection| RedisConnection | MongoConnection, prefix: str = "messages_chain") -> None:
 
         self.repo =ChainRepo(storage=storage, storage_prefix=prefix).init()
-
-
-
 
     @property
     def repository(self) -> ChainRepo:
         return self.repo
 
-
     async def chain_start_write(self, state: State) -> None:
         await state.set()
         await self.repo.delete_all()
-
 
     @media_group_handler(only_album=False)
     async def chain_write(self,message: List[Message]) -> None:

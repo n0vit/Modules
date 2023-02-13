@@ -171,7 +171,7 @@ class MongoConnection:
 
 
     def get_mongo(self):
-        return self._mongo.get_database(self._db_name)
+        return self._mongo, self._db_name
 
 
 
@@ -180,30 +180,17 @@ class MemoryConnection:
 
 
 
-class   ChainRepo:
-    def __init__(self, storage: Dispatcher | MemoryConnection| RedisConnection | MongoConnection, storage_prefix:str| None, ttl: int = 2) -> None:
+class ChainRepo:
+    def __init__(self, storage:  MemoryConnection| RedisConnection | MongoConnection, storage_prefix:str| None, ttl: int = 2) -> None:
         self.storage= storage
         self.prefix = storage_prefix
         self.ttl = ttl
 
-    def init(self) -> MemoryStorage | MongoStorage | RedisStorage | MemoryStorage:
+    def init(self) -> MemoryStorage | MongoStorage | RedisStorage:
         type_storage = type(self.storage)
         match type_storage.__name__:
-            case 'Dispatcher':
-                loop = asyncio.get_event_loop()
-
-        #  This happens when MongoDB driver is used as storage_driver argument
-                if loop.is_closed():
-                    loop = asyncio.new_event_loop()
-                    return loop.run_until_complete(self._wrap_storage(self.storage.get_current().storage, self.prefix, self.ttl))
-
-                else:
-                    return loop.create_task(self._wrap_storage(self.storage.get_current().storage, self.prefix, self.ttl))
-
-
             case 'MongoConnection':
-                return MongoStorage(self.storage.get_mongo(), self.prefix, ttl=self.ttl)
-
+                return MongoStorage(*self.storage.get_mongo(), self.prefix, ttl=self.ttl)
 
             case  'RedisConnection':
                 return RedisStorage(self.storage.get_redis(), self.prefix, ttl=self.ttl)
@@ -211,67 +198,3 @@ class   ChainRepo:
             case 'MemoryConnection':
                 return MemoryStorage(data=[])
                 ...
-
-
-
-    async def _wrap_storage(self, storage: AiogramMemoryStorage|AiogramMongoStorage|AiogramRedisStorage| AiogramRedis2Storage, prefix: str, ttl: int) -> MemoryStorage | MongoStorage | RedisStorage | None:
-        storage_type = type(storage)
-
-        if storage_type is AiogramMemoryStorage:
-            return MemoryStorage(data=[])
-
-        elif MONGO_INSTALLED:
-            if storage_type is AiogramMongoStorage:
-                mongo: motor_asyncio.AsyncIOMotorDatabase = await storage.get_db()
-                return MongoStorage(db=mongo, prefix=prefix, ttl=ttl)
-
-        elif REDIS_INSTALLED:
-            if storage_type is AiogramRedisStorage:
-                connection: aioredis.Connection = await storage.redis()
-                return RedisStorage(connection=connection, prefix=prefix, ttl=ttl)
-
-            elif storage_type is AiogramRedis2Storage:
-                redis: aioredis.Redis = await storage.redis()
-                return RedisStorage(connection=redis, prefix=prefix, ttl=ttl)
-
-        else:
-            raise ValueError(f"{storage_type} is unsupported storage")
-
-    #     class ChainControlModel(Document, ChainModel):
-    #         pass
-
-    #         # Beanie uses Motor under the hood
-    #     client = AsyncIOMotorClient(uri)
-    #     client.get_io_loop = asyncio.get_running_loop
-    #     logging.info(f"Chain Repo {client.server_info}")
-    #     db = client[database]
-    #     await ChainControlModel.init_model(db,True)
-    #     self.db = ChainControlModel
-
-
-    # async def add_descr(self, description: ChainModel) -> None:
-    #     description = self.db.parse_obj(description.dict())
-    #     await self.db.insert_one(description)
-
-    # async def get_all_descr(self) -> List[ChainModel]:
-    #     try:
-    #         all = await self.db.all().to_list()
-    #         all = [ChainModel.parse_obj(_) for _ in all]
-    #         return all
-    #     except Exception as e:
-    #         print(e, "обработан неверно")
-
-    # async def update_descr(self, new_data: ChainModel) -> None:
-    #     descr = await self.db.all().to_list()
-    #     data = descr[-1]
-    #     data_id = data.data_id.append(new_data.data_id)
-    #     content_type = data.content_type.append(new_data.content_type)
-    #     if new_data.text:
-    #         text = new_data.text
-    #     else:
-    #         text = data.text
-    #     data = Set({"data_id": data_id, "content_type": content_type, "text": text})
-    #     await descr[-1].update(data)
-
-    # async def delete_all(self) -> None:
-    #     await self.db.delete_all()
