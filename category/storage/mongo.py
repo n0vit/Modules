@@ -13,7 +13,7 @@ import threading
 
 
 class MongoStorage(BaseStorage):
-    def __init__(self, db: "motor_asyncio.AsyncIOMotorDatabase"):
+    def __init__(self, client: "motor_asyncio.AsyncIOMotorClient", db_name):
         class MongoCategoryModel(Document,CategoryModel):
             pass
         self.document= MongoCategoryModel
@@ -22,22 +22,24 @@ class MongoStorage(BaseStorage):
         #  This happens when MongoDB driver is used as storage_driver argument
         if loop.is_closed():
             loop = asyncio.new_event_loop()
+            db = client.get_database(db_name)
             loop.run_until_complete(init_beanie(database=db, document_models=[MongoCategoryModel]))
             logging.debug('Category Repo inited')
             loop.close()
         else:
-            threading.Thread(target=self._tread_init,name='Category Repo init',args=(db, MongoCategoryModel)).start()
+            threading.Thread(target=self._tread_init,name='Category Repo init',args=(client,db_name, MongoCategoryModel)).start()
 
             # self.task = loop.create_task(self.init( db, MongoCategoryModel))
 
     @staticmethod
-    def _tread_init(db, doc):
+    def _tread_init(client,db_name, doc):
         loop = asyncio.new_event_loop()
+        client.get_io_loop = asyncio.get_running_loop
+        db = client.get_database(db_name)
         loop.run_until_complete(init_beanie(database=db, document_models=[doc]))
         logging.debug('Category Repo inited')
 
     async def get_category(self,doc_id: str) -> CategoryModel | None:
-        await self.task
         return await  self.document.get(doc_id)
 
 

@@ -84,41 +84,15 @@ class MongoConnection:
 
 
     def get_mongo(self):
-        return self._mongo.get_database(self._db_name)
-
+        return self._mongo, self._db_name
 
 
 
 class CategoryRepo:
-    def __init__(self, storage: Dispatcher  | MongoConnection, storage_prefix:str| None, ttl: int = 2) -> None:
+    def __init__(self, storage: MongoConnection, storage_prefix:str| None, ttl: int = 2) -> None:
         self.storage= storage
         self.prefix = storage_prefix
         self.ttl = ttl
 
-    def init(self) ->   MongoStorage :
-        type_storage = type(self.storage)
-        match type_storage.__name__:
-            case 'Dispatcher':
-                loop = asyncio.get_event_loop()
-
-                if loop.is_closed():
-                    loop = asyncio.new_event_loop()
-                    return loop.run_until_complete(self._wrap_storage(self.storage.get_current().storage))
-
-                else:
-                    return loop.create_task(self._wrap_storage(self.storage.get_current().storage))
-
-            case 'MongoConnection':
-                return MongoStorage(self.storage.get_mongo())
-
-
-    async def _wrap_storage(self, storage: AiogramMemoryStorage|AiogramMongoStorage) ->   MongoStorage | None:
-        storage_type = type(storage)
-
-        if MONGO_INSTALLED:
-            if storage_type is AiogramMongoStorage:
-                mongo: motor_asyncio.AsyncIOMotorDatabase = await storage.get_db()
-                return MongoStorage(db=mongo)
-
-        else:
-            raise ValueError(f"{storage_type} is unsupported storage")
+    def init(self) ->  MongoStorage :
+        return MongoStorage(*self.storage.get_mongo())
