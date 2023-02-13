@@ -24,9 +24,11 @@ class CategoryButtons:
         )
 
 
-    def categories(self):
-        return InlineKeyboardMarkup().add([InlineKeyboardButton('c', callback_data=self.cb.control.new(type='root', id='root'))])
+    def categories(self) -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup().add(InlineKeyboardButton('c', callback_data=self.cb.control.new(type='root', id='root')))
 
+    def _save_description(self, name: str) -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup().add(InlineKeyboardButton(name, callback_data=self.cb.control.new(type='save', id='')))
 
     def _categories(self,
         categories: List[CategoryModel],

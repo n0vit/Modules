@@ -1,17 +1,22 @@
 from __future__ import annotations
 from typing import Any, List
 from uuid import uuid4
+from bson import ObjectId
 from pydantic import BaseModel
 from messages_chain import ChainModel
 from aiogram.utils.callback_data import CallbackData
 
 class CategoryModel(BaseModel):
     parent_id: str = 'root'
-    id= uuid4().hex
+    id= ''
     name: str
     extra: Any | None = None
     description: List[ChainModel] = []
     subcategories:  List[str] = []
+
+    class Config:
+        arbitrary_types_allowed = True
+
 
 
 class Button(BaseModel):
@@ -24,6 +29,9 @@ class Button(BaseModel):
     callback: CallbackData
     own_args: dict
     name: str
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class CustomButtonsModel(BaseModel):
@@ -46,11 +54,12 @@ class MessageTextModel(BaseModel):
     error_menu: str = "Main Categories not found"
     error_found: str = "Category not found"
     get_name: str = "Send Name new category"
-    get_description: str = "Now send me description of category or send . for save without"
+    get_description: str = "Now send me description (it's maybe chain message with media) of category or press button for save without"
     get_new_name: str = "Send new Name"
     get_new_description: str = "Send new Description"
     name_updated:str = "Name Updated !"
     description_updated:str = "Description Updated !"
+    btn_save_description: str ="Save Description"
     error_updating: str = "Update didn't applied something went wrong, please try again, maybe you input incorrect symbols"
     gategory_saved: str = "Category successfully added"
     error_saving: str = "Category didn't saved something went wrong, please try again"

@@ -1,16 +1,13 @@
 import asyncio
 import logging
 from typing import List
-from typing import TYPE_CHECKING
 import itertools
 from ..model import CategoryModel
 from .base import BaseStorage
-
-if TYPE_CHECKING:
-    from motor import motor_asyncio
-    from beanie import Document, init_beanie
-    from beanie.operators import  Set
-
+from motor import motor_asyncio
+from beanie import Document, init_beanie
+from beanie.operators import  Set
+import threading
 
 
 
@@ -26,12 +23,21 @@ class MongoStorage(BaseStorage):
         if loop.is_closed():
             loop = asyncio.new_event_loop()
             loop.run_until_complete(init_beanie(database=db, document_models=[MongoCategoryModel]))
+            logging.debug('Category Repo inited')
             loop.close()
         else:
-            loop.create_task(init_beanie(database=db, document_models=[MongoCategoryModel]))
+            threading.Thread(target=self._tread_init,name='Category Repo init',args=(db, MongoCategoryModel)).start()
 
+            # self.task = loop.create_task(self.init( db, MongoCategoryModel))
+
+    @staticmethod
+    def _tread_init(db, doc):
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(init_beanie(database=db, document_models=[doc]))
+        logging.debug('Category Repo inited')
 
     async def get_category(self,doc_id: str) -> CategoryModel | None:
+        await self.task
         return await  self.document.get(doc_id)
 
 
@@ -74,7 +80,7 @@ class MongoStorage(BaseStorage):
 
     async def add_category(self, category: CategoryModel) -> CategoryModel | None:
         try:
-            new_category =  await self.document.insert_one(category)
+            new_category =  await self.document.insert_one(self.document.parse_obj(category.dict(exclude={"id"})))
             if category.parent_id != 'root':
                 parent  = await self.document.get(category.parent_id)
                 parent.subcategories.append(category.id)
