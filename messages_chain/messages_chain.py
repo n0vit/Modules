@@ -143,7 +143,7 @@ class MessagesChain:
             )
         )
 
-    async def chain_finish_write(self,state: FSMContext| None) -> List[ChainModel]| List:
+    async def chain_finish_write(self,state: FSMContext| None) -> List[ChainModel]:
         if state:
             await state.finish()
         list_descriptions = await self.repo.get_all_chain()

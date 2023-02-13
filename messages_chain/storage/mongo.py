@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import threading
 from typing import List
 from typing import Literal
 from typing import TYPE_CHECKING
@@ -38,7 +39,15 @@ class MongoStorage(BaseStorage):
             loop.run_until_complete(self._create_collection(db, prefix, ttl))
             loop.close()
         else:
-            loop.create_task(self._create_collection(db, prefix, ttl))
+            threading.Thread(target=self._tread_init,name=f'Message Chain {prefix} init',args=(self, db, prefix, ttl)).run()
+
+
+    def _tread_init(self, db, prefix, ttl):
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(self._create_collection(db, prefix, ttl))
+        loop.close()
+        logging.debug('Message Chain inited')
+
 
     async def _create_collection(self, db: "motor_asyncio.AsyncIOMotorDatabase", prefix: str, ttl: int):
         try:
