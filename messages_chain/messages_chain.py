@@ -7,8 +7,6 @@ from .chain_model import ChainModel
 from .chain_repo import ChainRepo, MemoryConnection,MongoConnection,RedisConnection
 from aiogram.dispatcher.filters.state import State
 
-
-å
 class MessagesChain:
     """ General Repository
 
