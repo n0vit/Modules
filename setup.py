@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="message_chain",
-    version="0.5",
+    version="0.6",
     author="tg: n0v_it",
     author_email="kolzazanovikov@gmail.com",
     description="Chain Module for other modules",

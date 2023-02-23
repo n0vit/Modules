@@ -136,6 +136,7 @@ class MongoConnection:
 
     def __init__(
         self,
+        client: AsyncIOMotorClient = None,
         host="localhost",
         port=27017,
         db_name="chain",
@@ -153,6 +154,10 @@ class MongoConnection:
         self._username = username
         self._password = password
         self._kwargs = kwargs  # custom client options like SSL configuration, etc.
+
+        if client:
+            self._mongo = client
+            return
 
         if self._uri:
             try:
