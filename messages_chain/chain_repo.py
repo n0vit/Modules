@@ -40,7 +40,9 @@ elif AIOGRAM_VERSION == 2:
     try:
         from motor import motor_asyncio
 
-        from aiogram.contrib.fsm_storage.mongo import MongoStorage as AiogramMongoStorage
+        from aiogram.contrib.fsm_storage.mongo import (
+            MongoStorage as AiogramMongoStorage,
+        )
 
         from .storage.mongo import MongoStorage
     except ModuleNotFoundError:
@@ -48,7 +50,6 @@ elif AIOGRAM_VERSION == 2:
         pass
     else:
         MONGO_INSTALLED = True
-
 
     try:
         import aioredis
@@ -66,23 +67,21 @@ elif AIOGRAM_VERSION == 2:
         REDIS_INSTALLED = True
 
 
-
 class RedisConnection:
-
     def __init__(
-            self,
-            host: str = "localhost",
-            port: int = 6379,
-            db: typing.Optional[int] = None,
-            password: typing.Optional[str] = None,
-            ssl: typing.Optional[bool] = None,
-            pool_size: int = 10,
-            loop: typing.Optional[asyncio.AbstractEventLoop] = None,
-            prefix: str = "fsm",
-            state_ttl: typing.Optional[int] = None,
-            data_ttl: typing.Optional[int] = None,
-            bucket_ttl: typing.Optional[int] = None,
-            **kwargs,
+        self,
+        host: str = "localhost",
+        port: int = 6379,
+        db: typing.Optional[int] = None,
+        password: typing.Optional[str] = None,
+        ssl: typing.Optional[bool] = None,
+        pool_size: int = 10,
+        loop: typing.Optional[asyncio.AbstractEventLoop] = None,
+        prefix: str = "fsm",
+        state_ttl: typing.Optional[int] = None,
+        data_ttl: typing.Optional[int] = None,
+        bucket_ttl: typing.Optional[int] = None,
+        **kwargs,
     ):
         self._host = host
         self._port = port
@@ -135,8 +134,17 @@ class MongoConnection:
         await dp.storage.wait_closed()
     """
 
-    def __init__(self, host='localhost', port=27017, db_name='chain',collection_name='message_chain', uri=None,
-                 username=None, password=None, **kwargs):
+    def __init__(
+        self,
+        host="localhost",
+        port=27017,
+        db_name="chain",
+        collection_name="message_chain",
+        uri=None,
+        username=None,
+        password=None,
+        **kwargs,
+    ):
         self._host = host
         self._port = port
         self._db_name: str = db_name
@@ -152,49 +160,53 @@ class MongoConnection:
             except errors.ConfigurationError as e:
                 if "query() got an unexpected keyword argument 'lifetime'" in e.args[0]:
                     import logging
+
                     logger = logging.getLogger("aiogram")
-                    logger.warning("Run `pip install dnspython==1.16.0` in order to fix ConfigurationError. More information: https://github.com/mongodb/mongo-python-driver/pull/423#issuecomment-528998245")
+                    logger.warning(
+                        "Run `pip install dnspython==1.16.0` in order to fix ConfigurationError. More information: https://github.com/mongodb/mongo-python-driver/pull/423#issuecomment-528998245"
+                    )
                 raise e
 
-
-        uri = 'mongodb://'
+        uri = "mongodb://"
 
         # set username + password
         if self._username and self._password:
-            uri += f'{self._username}:{self._password}@'
+            uri += f"{self._username}:{self._password}@"
 
         # set host and port (optional)
-        uri += f'{self._host}:{self._port}' if self._host else f'localhost:{self._port}'
+        uri += f"{self._host}:{self._port}" if self._host else f"localhost:{self._port}"
 
         # define and return client
         self._mongo = AsyncIOMotorClient(uri)
 
-
     def get_mongo(self):
         return self._mongo, self._db_name
-
 
 
 class MemoryConnection:
     pass
 
 
-
 class ChainRepo:
-    def __init__(self, storage:  MemoryConnection| RedisConnection | MongoConnection, storage_prefix:str| None, ttl: int = 2) -> None:
-        self.storage= storage
+    def __init__(
+        self,
+        storage: MemoryConnection | RedisConnection | MongoConnection,
+        storage_prefix: str | None,
+        ttl: int = 2,
+    ) -> None:
+        self.storage = storage
         self.prefix = storage_prefix
         self.ttl = ttl
 
     def init(self) -> MemoryStorage | MongoStorage | RedisStorage:
         type_storage = type(self.storage)
         match type_storage.__name__:
-            case 'MongoConnection':
-                return MongoStorage(*self.storage.get_mongo(), self.prefix, ttl=self.ttl)
+            case "MongoConnection":
+                return MongoStorage(self.storage.get_mongo(), self.prefix, ttl=self.ttl)
 
-            case  'RedisConnection':
+            case "RedisConnection":
                 return RedisStorage(self.storage.get_redis(), self.prefix, ttl=self.ttl)
 
-            case 'MemoryConnection':
+            case "MemoryConnection":
                 return MemoryStorage(data=[])
                 ...
