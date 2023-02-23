@@ -13,8 +13,6 @@ from .model import CategoryModel, CustomButtonsModel, MessageTextModel
 from .repo import CategoryRepo
 
 
-
-
 class CategoryStates(StatesGroup):
     name = State()
     edit_name = State()
@@ -38,31 +36,62 @@ class Category:
         if texts.debug:
             dct = texts.dict()
             texts = MessageTextModel.parse_obj(
-                dict((_, (_ + ":" + dct[_])) for _ in dct.keys() if type(dct[_]) != bool)
+                dict(
+                    (_, (_ + ":" + dct[_])) for _ in dct.keys() if type(dct[_]) != bool
+                )
             )
         self.texts = texts
         self.admin_ids = admin_ids
-        self.custom_buttons = buttons
         self.callback = CategoryCallBackData(prefix=prefix)
-        self.buttons = CategoryButtons(self.callback)
-
+        self.buttons = CategoryButtons(self.callback, buttons)
 
     def reg_handlers(self, dispatcher: Dispatcher):
         cb = self.callback
         dp = dispatcher
-        dp.register_callback_query_handler(self.add_category, cb.control.filter(type=['sub', 'main']))
-        dp.register_callback_query_handler(self.delete_category, cb.control.filter(type='delete'))
-        dp.register_callback_query_handler(self.delete_confirmation, cb.control.filter(type=['save_subs','delete_subs','cancel_deleting']))
-        dp.register_callback_query_handler(self.edit_description, cb.control.filter(type='description'))
-        dp.register_callback_query_handler(self.edit_name, cb.control.filter(type='name'))
-        dp.register_callback_query_handler(self.get_category, cb.control.filter(type=['reorder', 'page']))
+        dp.register_callback_query_handler(
+            self.add_category, cb.control.filter(type=["sub", "main"])
+        )
+        dp.register_callback_query_handler(
+            self.delete_category, cb.control.filter(type="delete")
+        )
+        dp.register_callback_query_handler(
+            self.delete_confirmation,
+            cb.control.filter(type=["save_subs", "delete_subs", "cancel_deleting"]),
+        )
+        dp.register_callback_query_handler(
+            self.edit_description, cb.control.filter(type="description")
+        )
+        dp.register_callback_query_handler(
+            self.edit_name, cb.control.filter(type="name")
+        )
+        dp.register_callback_query_handler(
+            self.get_category, cb.control.filter(type=["page", "back_self"])
+        )
+        dp.register_callback_query_handler(
+            self.get_main_category, cb.category.filter(id="root")
+        )
         dp.register_callback_query_handler(self.get_category, cb.category.filter())
-        dp.register_callback_query_handler(self.save_category,cb.control.filter(type='save'), state=CategoryStates.description)
+        dp.register_callback_query_handler(
+            self.save_category,
+            cb.control.filter(type="save"),
+            state=CategoryStates.description,
+        )
+        dp.register_callback_query_handler(
+            self.control_category, cb.control.filter(type="menu")
+        )
+        dp.register_callback_query_handler(
+            self.save_new_description,
+            cb.control.filter(type="save"),
+            state=CategoryStates.edit_description,
+        )
         dp.register_message_handler(self.save_name, state=CategoryStates.name)
         dp.register_message_handler(self.save_new_name, state=CategoryStates.edit_name)
-        dp.register_callback_query_handler(self.save_new_description,self.save_category,cb.control.filter(type='save'), state=CategoryStates.edit_description)
-        dp.register_message_handler(self.chain.chain_write, state=CategoryStates.description)
-        dp.register_message_handler(self.chain.chain_write, state=CategoryStates.edit_description)
+        dp.register_message_handler(
+            self.chain.chain_write, state=CategoryStates.description
+        )
+        dp.register_message_handler(
+            self.chain.chain_write, state=CategoryStates.edit_description
+        )
 
     async def try_edit(message: Message, text, markup=None):
         try:
@@ -76,27 +105,75 @@ class Category:
         except Exception:
             await message.answer(text)
 
-    async def get_main_category(self, query:CallbackQuery):
-        categories = await self.repo.get_subcategories('root')
+    async def get_main_category(self, query: CallbackQuery):
+        categories = await self.repo.get_main_category()
+        isAdmin = str(query.from_user.id) in self.admin_ids
         if not categories:
             await query.answer(self.texts.error_menu, cache_time=5)
         try:
-            await query.message.edit_caption(self.texts.menu, reply_markup=self.buttons)
+            await query.message.edit_caption(
+                self.texts.menu,
+                reply_markup=self.buttons._main_categories(categories, isAdmin),
+            )
         except Exception:
-            await query.message.edit_text(self.texts.menu, )
+            await query.message.edit_text(
+                self.texts.menu,
+                reply_markup=self.buttons._main_categories(categories, isAdmin),
+            )
+
+    async def control_category(self, query: CallbackQuery, callback_data: dict):
+        categories = await self.repo.get_category(callback_data["id"])
+        # isAdmin = str(query.from_user.id) in self.admin_ids
+        if not categories:
+            await query.answer(self.texts.error_menu, cache_time=5)
+        try:
+            await query.message.edit_reply_markup(
+                reply_markup=self.buttons._control_menu(callback_data["id"])
+            )
+        except Exception:
+            await query.message.edit_text(
+                self.texts.error_menu,
+                reply_markup=self.buttons._control_menu(callback_data["id"]),
+            )
 
     async def get_category(self, query: CallbackQuery, callback_data: dict):
-        isAdmin = query.from_user.id in self.admin_ids
-        isReorder = callback_data.get("type", "") == "reorder"
-        isPage = callback_data.get("type", "") == "page"
+        isAdmin = str(query.from_user.id) in self.admin_ids
+        type = callback_data.get("type", "")
+        isPage = type == "page"
         category = None
+        id = callback_data.get("id", "root")
+
+        if id == "root":
+            return await self.get_main_category(query)
+
+        kwargs = dict(
+            categories=[],
+            isAdmin=isAdmin,
+            page=1,
+            current=category,
+            control_text=self.texts.btn_control,
+            back_text=self.texts.btn_back_parent,
+            id=f"{query.from_user.id}:{type}",
+        )
 
         if isPage:
-            page_number = int(callback_data.get("id", 1))
+            page = int(callback_data.get("id", 1))
+            kwargs["page"] = page
+            await query.message.edit_reply_markup(self.buttons._categories(**kwargs))
+            return
+
         else:
-            page_number = 1 #TODO: Check
-            category = await self.repo.get_category(callback_data["id"])
-        if category:
+            category = await self.repo.get_category(id)
+
+            if not category:
+                await query.message.answer(self.texts.error_found)
+                return
+
+            kwargs["current"] = category
+            subcats = await self.repo.get_subcategories(str(category.id))
+
+            kwargs["categories"] = subcats
+
             if category.description:
                 try:
                     await query.message.delete()
@@ -104,23 +181,14 @@ class Category:
                     pass
 
                 await self.chain.chain_read(query.message, category.description)
-                subcats = await self.repo.get_subcategories(category.id)
                 await query.message.answer(
-                    category.name,
-                    reply_markup=self.buttons.categories(
-                        subcats or [],
-                        isAdmin=isAdmin,
-                        custom_buttons=self.buttons,
-                        isReorder=isReorder,
-                        page=page_number,
-                        control_text=self.texts.btn_control,
-                    ),
+                    category.name, reply_markup=self.buttons._categories(**kwargs)
                 )
 
             else:
-                query.message.edit_text(
+                await query.message.edit_text(
                     category.name,
-                    reply_markup=self.buttons.categories([], isAdmin=isAdmin),
+                    reply_markup=self.buttons._categories(**kwargs),
                 )
 
     async def get_all_categories(self, id: str):
@@ -132,43 +200,59 @@ class Category:
         await CategoryStates.name.set()
         await state.update_data(id=callback_data.get("id", "root"))
         await query.message.answer(text=self.texts.get_name)
-#messages chain update connection
+
     async def save_name(self, message: Message, state: FSMContext) -> None:
         await self.chain.chain_start_write(CategoryStates.description)
         await state.update_data(name=message.html_text)
-        await message.answer(text=self.texts.get_description, reply_markup=self.buttons._save_description(self.texts.btn_save_description))
+        await message.answer(
+            text=self.texts.get_description,
+            reply_markup=self.buttons._save_description(
+                self.texts.btn_save_description
+            ),
+        )
 
     async def save_category(self, query: CallbackQuery, state: FSMContext) -> None:
         async with state.proxy() as data:
-            parent_id = data['id']
-            name = data['name']
+            parent_id = data["id"]
+            name = data["name"]
         description = await self.chain.chain_finish_write(state)
-        new_category = await self.repo.add_category(category=CategoryModel(parent_id=parent_id,name=name,description=description))
-        if parent_id !='root' and new_category:
-            await self.repo.update_subcategories(parent_id, [new_category.id])
+
+        for _ in range(20):
+            new_category = await self.repo.add_category(
+                category=CategoryModel(
+                    parent_id=parent_id, name=(name + str(_)), description=description
+                )
+            )
+
         if new_category:
             await query.message.answer(text=self.texts.gategory_saved)
-            await self.get_category(query, callback_data={"id":new_category.id})
+
+            await self.get_category(query, callback_data={"id": new_category.id})
         else:
             await query.message.answer(text=self.texts.error_saving)
-
 
     async def delete_category(self, query: CallbackQuery, callback_data: dict) -> None:
         id = callback_data["id"]
         category = await self.repo.get_category(doc_id=id)
         if category:
-            if category.subcategories:
+            subs = await self.repo.get_subcategories(id)
+            if subs:
                 await query.message.answer(
                     text=self.texts.save_subcategories,
-                    reply_markup=CategoryButtons.save_subcategories(
-                        self.texts.save_subcategories_btn_yes,
-                        self.texts.save_subcategories_btn_no,
-                        self.texts.btn_cancel_delete,
+                    reply_markup=self.buttons.save_subcategories(
+                        (
+                            self.texts.save_subcategories_btn_yes,
+                            self.texts.save_subcategories_btn_no,
+                            self.texts.btn_cancel_delete,
+                        ),
+                        id=id,
                     ),
                 )
             else:
                 await self.repo.delete_category(id)
-                await query.message.answer(self.texts.deleted_with_subs)
+
+                await query.message.edit_text(self.texts.deleted_with_subs)
+                await self.get_category(query, callback_data={"id": category.parent_id})
 
     async def delete_confirmation(
         self, query: CallbackQuery, callback_data: dict
@@ -189,52 +273,58 @@ class Category:
                 await query.message.answer(self.texts.deleted_without_subs)
             case _:
                 await query.message.answer(self.texts.btn_cancel_delete)
-        await self.get_category(query, callback_data={''})
+        await self.get_category(query, callback_data={"id": category.parent_id})
 
     async def edit_name(
         self, query: CallbackQuery, state: FSMContext, callback_data: dict
     ) -> None:
         id = callback_data["id"]
-        CategoryStates.edit_name.set()
-        state.update_data(id=id)
+        await CategoryStates.edit_name.set()
+        await state.update_data(id=id)
+        await state.update_data(query=query.to_python())
         await query.message.answer(self.texts.get_new_name)
 
     async def edit_description(
         self, query: CallbackQuery, state: FSMContext, callback_data: dict
     ) -> None:
         id = callback_data["id"]
-        self.chain.chain_start_write(CategoryStates.edit_description)
-        state.update_data(id=id)
-        await query.message.answer(self.texts.get_new_description)
+        await self.chain.chain_start_write(CategoryStates.edit_description)
+        await state.update_data(id=id)
+        await state.update_data(query=query.to_python())
+        await query.message.answer(
+            self.texts.get_new_description,
+            reply_markup=self.buttons._save_description(self.texts.get_new_description),
+        )
 
     async def save_new_name(self, message: Message, state: FSMContext) -> None:
-        id = await state.get_data("id")
+        data = await state.get_data()
         await state.finish()
         name = message.html_text
-        category = await self.repo.update_name_category(id, name)
+        category = await self.repo.update_name_category(data["id"], name)
         if category:
             await message.answer(self.texts.name_updated)
-            await self.get_category(id)
+            await self.get_category(CallbackQuery.to_object(data["query"]), data)
         else:
             await message.answer(self.texts.error_updating)
 
     async def save_new_description(self, message: Message, state: FSMContext) -> None:
-        id = await state.get_data("id")
-        description =  await self.chain.chain_finish_write(state)
-        description = [] if message.html_text == "." else description
-        category = await self.repo.update_desciption_category(id, description)
+        data = await state.get_data()
+        description = await self.chain.chain_finish_write(state)
+        category = await self.repo.update_desciption_category(data["id"], description)
         if category:
             await message.answer(self.texts.description_updated)
-            await self.get_category(id)
+            await self.get_category(CallbackQuery.to_object(data["query"]), data)
         else:
             await message.answer(self.texts.error_updating)
 
-
     async def save_extra():
         raise NotImplemented
+
     async def edit_extra():
         raise NotImplemented
+
     async def save_new_extra():
         raise NotImplemented
+
     async def delete_extra():
         raise NotImplemented

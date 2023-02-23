@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import logging
 from typing import List
@@ -5,67 +6,78 @@ import itertools
 from ..model import CategoryModel
 from .base import BaseStorage
 from motor import motor_asyncio
-from beanie import Document, init_beanie
-from beanie.operators import  Set
+from beanie import Document, init_beanie, Link
+from beanie.operators import Set
 import threading
-
-
 
 
 class MongoStorage(BaseStorage):
     def __init__(self, client: "motor_asyncio.AsyncIOMotorClient", db_name):
-        class MongoCategoryModel(Document,CategoryModel):
+        class MongoCategoryModel(Document, CategoryModel):
             pass
-        self.document= MongoCategoryModel
+
+        self.document = MongoCategoryModel
         loop = asyncio.get_event_loop()
 
         #  This happens when MongoDB driver is used as storage_driver argument
         if loop.is_closed():
             loop = asyncio.new_event_loop()
             db = client.get_database(db_name)
-            loop.run_until_complete(init_beanie(database=db, document_models=[MongoCategoryModel]))
-            logging.debug('Category Repo inited')
+            loop.run_until_complete(
+                init_beanie(database=db, document_models=[MongoCategoryModel])
+            )
+            logging.debug("Category Repo inited")
             loop.close()
         else:
-            threading.Thread(target=self._tread_init,name='Category Repo init',args=(client,db_name, MongoCategoryModel)).start()
+            threading.Thread(
+                target=self._tread_init,
+                name="Category Repo init",
+                args=(client, db_name, MongoCategoryModel),
+            ).start()
 
             # self.task = loop.create_task(self.init( db, MongoCategoryModel))
 
     @staticmethod
-    def _tread_init(client,db_name, doc):
+    def _tread_init(client, db_name, doc):
         loop = asyncio.new_event_loop()
         client.get_io_loop = asyncio.get_running_loop
         db = client.get_database(db_name)
         loop.run_until_complete(init_beanie(database=db, document_models=[doc]))
-        logging.debug('Category Repo inited')
+        logging.debug("Category Repo inited")
 
-    async def get_category(self,doc_id: str) -> CategoryModel | None:
-        return await  self.document.get(doc_id)
+    async def get_category(self, doc_id: str) -> CategoryModel | None:
+        doc = await self.document.get(doc_id)
+        if doc.subcategories:
+            doc.subcategories = [CategoryModel.parse_obj(_) for _ in doc.subcategories]
+        return doc
 
+    async def get_main_category(self) -> List[CategoryModel]:
+        return await self.document.find(self.document.parent_id == "root").to_list()
 
-    async def get_subcategories(self,doc_id: str) -> List[CategoryModel] | None:
+    async def get_subcategories(self, doc_id: str) -> List[CategoryModel] | None:
         try:
-            category = await self.get_category(doc_id)
-            if category:
-                return await self.document.find_many([category.subcategories])
-            return None
+            return await self.document.find(self.document.parent_id == doc_id).to_list()
         except Exception as e:
             logging.error(e)
             return None
 
-    async def get_branch_categories(self,doc_id: str) -> List[CategoryModel] | None:
+    async def get_branch_categories(
+        self, model: CategoryModel, delete: bool = False
+    ) -> List[CategoryModel] | None:
         try:
-            categories = []
-            category = await self.document.get(doc_id)
-            if category:
-                subcats = await self.get_subcategories(doc_id)
+            categories: List[CategoryModel] = [model]
+
+            async def get_subs(cat: CategoryModel):
+                subcats = await self.get_subcategories(str(cat.id))
                 if subcats:
                     categories.extend(subcats)
-                    for sub in subcats:
-                        cats = await self.get_branch_categories(sub.id)
-                        categories.append(cats)
-                else:
-                    return categories
+                index = categories.index(cat) + 1
+                if index == len(categories):
+                    return
+                await get_subs(categories[index])
+
+            await get_subs(categories[0])
+            return categories
         except Exception as e:
             logging.error(e)
             return None
@@ -82,55 +94,45 @@ class MongoStorage(BaseStorage):
 
     async def add_category(self, category: CategoryModel) -> CategoryModel | None:
         try:
-            new_category =  await self.document.insert_one(self.document.parse_obj(category.dict(exclude={"id"})))
-            if category.parent_id != 'root':
-                parent  = await self.document.get(category.parent_id)
+            new_category = await self.document.insert_one(
+                self.document.parse_obj(category.dict(exclude={"id"}))
+            )
+            if category.parent_id != "root":
+                parent = await self.document.get(category.parent_id)
                 parent.subcategories.append(category.id)
-                await self.update_subcategories(parent.id, parent.subcategories)
             return new_category
         except Exception as e:
             logging.error(e)
             return None
 
-
-    async def delete_category(self, doc_id: str, saveChilderns: bool = False) ->  None:
+    async def delete_category(self, doc_id: str, saveChilderns: bool = False) -> None:
         try:
             category = await self.get_category(doc_id)
             if category:
-                if  not category.subcategories:
-                    await self.document.delete(doc_id)
+                subs = await self.get_subcategories(doc_id)
+                if not subs:
+                    await self.document.delete(category)
                     return
 
                 if saveChilderns:
-                    if category.parent_id == 'root':
-                        for cat in category.subcategories:
-                            self.update_parent_id(cat, 'root')
-                    else:
-                        parent = await self.get_category(category.parent_id)
-                        parent.subcategories.pop(parent.subcategories.index(category.id))
-                        parent.subcategories.extend(category.subcategories)
-                        await self.update_subcategories(parent.subcategories,parent.id)
-                else:
-                    if category.parent_id != 'root':
-                        parent = await self.get_category(category.parent_id)
-                        parent.subcategories.pop(parent.subcategories.index(category.id))
-                        await self.update_subcategories(parent.subcategories,parent.id)
+                    [
+                        await self.update_parent_id(cat.id, category.parent_id)
+                        for cat in subs
+                    ]
 
-                    branch = self.get_branch_categories(doc_id)
-                    deletly_categories: List[CategoryModel] = list(itertools.chain(*branch))
-                    deletly_categories.append(category)
-                    for _ in deletly_categories:
-                        await self.document.delete(_.id)
+                else:
+                    branch = await self.get_branch_categories(category)
+                    for _ in branch:
+                        await _.delete()
 
         except Exception as e:
             logging.error(e)
             return None
 
-
-    async def update_name_category(self,doc_id: str, name: str) -> CategoryModel:
+    async def update_name_category(self, doc_id: str, name: str) -> CategoryModel:
         try:
             category = await self.document.get(doc_id)
-            new_data = Set(category.name, name)
+            new_data = Set({"name": name})
             await category.update(new_data)
             category.name = name
             return category
@@ -138,11 +140,12 @@ class MongoStorage(BaseStorage):
             logging.error(e)
             return None
 
-
-    async def update_desciption_category(self, doc_id: str, description: str) -> CategoryModel:
+    async def update_desciption_category(
+        self, doc_id: str, description: str
+    ) -> CategoryModel:
         try:
             category = await self.document.get(doc_id)
-            new_data = Set(category.description, description)
+            new_data = Set({"description": description})
             await category.update(new_data)
             category.description = description
             return category
@@ -150,12 +153,10 @@ class MongoStorage(BaseStorage):
             logging.error(e)
             return None
 
-
-
     async def update_parent_id(self, doc_id: str, parent_id: str) -> CategoryModel:
         try:
             category = await self.document.get(doc_id)
-            new_data = Set(category.parent_id, parent_id)
+            new_data = Set({"parent_id": parent_id})
             await category.update(new_data)
             category.parent_id = parent_id
             return category
@@ -163,13 +164,14 @@ class MongoStorage(BaseStorage):
             logging.error(e)
             return None
 
-
-
-    async def update_subcategories(self, doc_id: str, subcategories: List[str]) -> CategoryModel:
+    async def replace_subcategories(
+        self, doc_id: str, subcategories: List[CategoryModel]
+    ) -> CategoryModel:
         try:
             category = await self.document.get(doc_id)
-            category.subcategories.extend(subcategories)
-            new_data = Set(category.subcategories,  category.subcategories)
+            for sub in subcategories:
+                sub.id = str(sub.id)
+            new_data = Set({"subcategories": subcategories})
             await category.update(new_data)
             category.subcategories = subcategories
             return category
@@ -177,10 +179,24 @@ class MongoStorage(BaseStorage):
             logging.error(e)
             return None
 
-    async def update_extra_category(self,doc_id: str, extra: str) -> CategoryModel:
+    async def update_subcategories(
+        self, doc_id: str, subcategories: List[CategoryModel]
+    ) -> CategoryModel:
         try:
             category = await self.document.get(doc_id)
-            new_data = Set(category.extra, extra)
+            category.subcategories.extend(subcategories)
+            new_data = Set({"subcategories": category.subcategories})
+            await category.update(new_data)
+            category.subcategories = subcategories
+            return category
+        except Exception as e:
+            logging.error(e)
+            return None
+
+    async def update_extra_category(self, doc_id: str, extra: str) -> CategoryModel:
+        try:
+            category = await self.document.get(doc_id)
+            new_data = Set({"extra": extra})
             await category.update(new_data)
             category.extra = extra
             return category
